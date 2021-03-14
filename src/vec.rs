@@ -1,4 +1,5 @@
 use crate::point::Point3;
+use rand::Rng;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 #[derive(Copy, Clone)]
@@ -83,6 +84,19 @@ impl Vec3 {
 
     pub fn len(&self) -> f64 {
         self.sqr_len().sqrt()
+    }
+
+    pub fn random_unit_sphere() -> Vec3 {
+        loop {
+            let dir = Vec3(
+                rand::thread_rng().gen_range(-1.0..=1.),
+                rand::thread_rng().gen_range(-1.0..=1.),
+                rand::thread_rng().gen_range(-1.0..=1.),
+            );
+            if dir.sqr_len() < 1. {
+                return dir;
+            }
+        }
     }
 
     pub fn unit(&self) -> Vec3 {

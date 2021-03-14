@@ -1,18 +1,23 @@
+mod angle;
+mod cam;
 mod color;
+mod hit;
 mod point;
 mod ppm;
 mod ray;
 mod vec;
-mod hit;
 
-use crate::color::Color;
+use crate::cam::Camera;
+use crate::color::{AvgColor, Color};
+use crate::hit::{Hittable, Sphere};
 use crate::point::Point3;
 use crate::ray::Ray;
 use crate::vec::Vec3;
 use ppm::Ppm;
+use rand::Rng;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use crate::hit::{Hittable, Sphere};
+use std::ops::Add;
 
 struct StdOutWriter;
 impl Write for StdOutWriter {
@@ -26,46 +31,36 @@ impl Write for StdOutWriter {
     }
 }
 
-fn ray_color(ray: &Ray, objects: &[Box<dyn Hittable>]) -> Color {
-    const WHITE: Color = Color(1.0, 1.0, 1.0);
-    const BLUE: Color = Color(0.5, 0.7, 1.0);
-    // for obj in objects{
-    //     if let Some(hit_point) = obj.hit(ray,0.,2.){
-    //         let normale = hit_point.normale;
-    //         return 0.5 * (WHITE + Color(normale.0, normale.1, normale.2));
-    //     }
-    // }
-    if let Some(hit_point) = objects.hit(ray,0.,2.){
-        let normale = hit_point.normale;
-        return 0.5 * (WHITE + Color(normale.0, normale.1, normale.2));
+fn ray_color(ray: &Ray, objects: &[Box<dyn Hittable>], rec_depth: u16) -> Color {
+    const WHITE: Color = Color::new(1., 1., 1.);
+    const BLACK: Color = Color::new(0., 0., 0.);
+    const BLUE: Color = Color::new(0.5, 0.7, 1.0);
+
+    if rec_depth == 0 {
+        return BLACK;
     }
 
-    //gradient de couleur (blanc..bleu) pour le fond
-    let unit_direction = ray.direction.unit();
-    // 0.5 <= t <= 1. si y monte, t monte
-    let t = 0.5 * (unit_direction.y() + 1.);
-    // plus y élevé => + bleu
-    // plus y bas => plus de blanc
-    WHITE * (1.0 - t) + BLUE * t
+    if let Some(hit) = objects.hit(ray, 0., f64::INFINITY) {
+        // la normale est unitaire, donc entre (-1, -1, -1) et (1, 1, 1)
+        // on choisit une couleur entre 0 et 1 proportionnelle à la normale, afin d ereprésenter la normale
+        let target = hit.hit_point + hit.normale + Vec3::random_unit_sphere();
+        // 0.5 * (WHITE + Color::new(hit.normale.0, hit.normale.1, hit.normale.2))
+        0.8 * ray_color(&Ray{ origin: hit.hit_point, direction: Vec3::points(hit.hit_point, target) }, objects, rec_depth -1)
+    } else {
+        //gradient de couleur (blanc..bleu) pour le fond sir pas de HIT
+        let t = 0.5 * (ray.direction.unit().y() + 1.);
+        WHITE * (1.0 - t) + BLUE * t
+    }
 }
-
 
 fn main() -> std::io::Result<()> {
     //Image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 1024;
+    const IMAGE_WIDTH: u32 = 600;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
 
-    //Camera
-    const VIEWPORT_HEIGHT: f64 = 2.0;
-    const VIEWPORT_WIDTH: f64 = ASPECT_RATIO * VIEWPORT_HEIGHT;
-    const FOCAL_LENGTH: f64 = 1.0;
-
-    const ORIGIN: Point3 = Point3(0f64, 0f64, 0f64);
-    const HORIZONTAL: Vec3 = Vec3(VIEWPORT_WIDTH, 0f64, 0f64);
-    const VERTICAL: Vec3 = Vec3(0f64, VIEWPORT_HEIGHT, 0f64);
-    let lower_left_corner: Point3 =
-        ORIGIN - (HORIZONTAL / 2f64) - (VERTICAL / 2f64) - Vec3(0f64, 0f64, FOCAL_LENGTH);
+    const SAMPLES_PER_PIXEL: u32 = 100;
+    let camera = Camera::new(2.0, ASPECT_RATIO, 1.0, Point3(0f64, 0f64, 0f64));
 
     //Render
     let file = File::create("back.ppm")?;
@@ -74,28 +69,42 @@ fn main() -> std::io::Result<()> {
         BufWriter::with_capacity((IMAGE_WIDTH * 10) as usize, file),
         IMAGE_WIDTH,
         IMAGE_HEIGHT,
-        65536,
+        255,
     )?;
 
     let mut objects: Vec<Box<dyn Hittable>> = Vec::new();
-    objects.push(Box::new(Sphere{
-        centre: Point3(0.3, 0.3, -1.),
-        radius: 0.5
+    objects.push(Box::new(Sphere {
+        centre: Point3(0., 0., -1.),
+        radius: 0.5,
     }));
-    objects.push(Box::new(Sphere{
-        centre: Point3(-0.6, -0.6, -1.),
-        radius: 0.2
+    objects.push(Box::new(Sphere {
+        centre: Point3(0., -100.5, -1.),
+        radius: 100.,
     }));
 
-    for (horiz_vec, vert_vec) in iterate_vect(IMAGE_WIDTH, IMAGE_HEIGHT, HORIZONTAL, VERTICAL) {
-        let r = Ray {
-            origin: ORIGIN,
-            direction: Vec3::points(ORIGIN, lower_left_corner) + horiz_vec + vert_vec,
-        };
-
-        ppm.next_pixel(ray_color(&r, &objects))?;
+    for j in (0..IMAGE_HEIGHT).rev() {
+        for i in 0..IMAGE_WIDTH {
+            let mut color = AvgColor::empty();
+            for sample in 0..SAMPLES_PER_PIXEL {
+                let u = (i as f64 + rand::random::<f64>()) / (IMAGE_WIDTH as f64 - 1.);
+                let v = (j as f64 + rand::random::<f64>()) / (IMAGE_HEIGHT as f64 - 1.);
+                let ray = camera.ray(u, v);
+                color = color + ray_color(&ray, &objects, 50);
+            }
+            ppm.next_pixel(color.avg())?;
+        }
     }
 
+    // for (u, v) in (0..IMAGE_HEIGHT).rev().flat_map(|j| {
+    //     (0..IMAGE_WIDTH).map(move |i| {
+    //         (
+    //             (i as f64 / (IMAGE_WIDTH as f64 - 1.)),
+    //             (j as f64 / (IMAGE_HEIGHT as f64 - 1.)),
+    //         )
+    //     })
+    // }) {
+    //     ppm.next_pixel(ray_color(&camera.ray(u, v), &objects))?;
+    // }
     Ok(())
 }
 

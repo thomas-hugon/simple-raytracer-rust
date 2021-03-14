@@ -28,9 +28,7 @@ impl<T: Write> Ppm<T>{
         if self.current_l >= self.height{
             return Ok(());
         }
-        let red = (color.0 * self.colors) as u32;
-        let green = (color.1 * self.colors) as u32;
-        let blue = (color.2 * self.colors) as u32;
+        let (red, green, blue) = color.scale(self.colors);
         if self.current_c < self.width - 1 {
             self.writer.write_all(format!("{} {} {} ", red, green, blue).as_bytes() )?;
             self.current_c += 1;
@@ -38,6 +36,7 @@ impl<T: Write> Ppm<T>{
             self.writer.write_all(format!("{} {} {}\n", red, green, blue).as_bytes() )?;
             self.current_c = 0;
             self.current_l += 1;
+            println!("line {} printed", self.current_l);
         }
         Ok(())
     }

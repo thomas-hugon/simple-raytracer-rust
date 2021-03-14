@@ -90,9 +90,7 @@ impl Hittable for Sphere {
         let h = x.scalar_product(ray.direction);
         let c = x.sqr_len() - self.radius * self.radius;
         let d = h * h - a * c;
-        if d < 0. {
-            None
-        } else {
+        if d >= 0. {
             //2 racines possibles: (-h - d.sqrt()) / a ou (-h + d.sqrt()) / a
             //on ne veut garder que la plus proche, comprise dans l'interval
             let root = (-h - d.sqrt()) / a;
@@ -103,7 +101,7 @@ impl Hittable for Sphere {
             if root >= t_min && root <= t_max {
                 return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root)).unit()))
             }
-            None
         }
+        None
     }
 }

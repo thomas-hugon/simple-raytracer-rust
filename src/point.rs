@@ -1,4 +1,5 @@
 use crate::vec::Vec3;
+use rand::Rng;
 use std::ops::{Add, Sub};
 
 #[derive(Copy, Clone)]
@@ -8,7 +9,7 @@ impl Add<Vec3> for Point3 {
     type Output = Point3;
 
     fn add(self, rhs: Vec3) -> Self::Output {
-        translate(self, rhs)
+        Point3(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
     }
 }
 
@@ -16,14 +17,6 @@ impl Sub<Vec3> for Point3 {
     type Output = Point3;
 
     fn sub(self, rhs: Vec3) -> Self::Output {
-        translate(self, -rhs)
+        self + -rhs
     }
-}
-
-pub fn translate(origin: Point3, direction: Vec3) -> Point3 {
-    Point3(
-        origin.0 + direction.0,
-        origin.1 + direction.1,
-        origin.2 + direction.2,
-    )
 }
