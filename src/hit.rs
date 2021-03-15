@@ -1,7 +1,7 @@
+use crate::material::Material;
 use crate::point::Point3;
 use crate::ray::Ray;
 use crate::vec::Vec3;
-use crate::material::Material;
 use std::rc::Rc;
 
 pub enum Face {
@@ -14,11 +14,18 @@ pub struct Hit {
     pub normale: Vec3,
     pub face: Face,
     pub factor: f64,
-    pub material: Rc<Box<dyn Material>>
+    // TODO virer le RC ?
+    pub material: Rc<dyn Material>,
 }
 
 impl Hit {
-    pub fn new(ray: &Ray, factor: f64, hit_point: Point3, outward_normale: Vec3, material: Rc<Box<dyn Material>>) -> Hit {
+    pub fn new(
+        ray: &Ray,
+        factor: f64,
+        hit_point: Point3,
+        outward_normale: Vec3,
+        material: Rc<dyn Material>,
+    ) -> Hit {
         // normale: centre -> hitpoint
         // si rayon sens opposé par rapport à normale -> on voit en direction du centre, donc la face ext
         // sinon rayon meme sens: la cam est entre le centre et le hitpoint donc face int
@@ -30,7 +37,7 @@ impl Hit {
                 normale: outward_normale,
                 face: Face::Front,
                 factor,
-                material
+                material,
             }
         } else {
             Hit {
@@ -38,28 +45,43 @@ impl Hit {
                 normale: -outward_normale,
                 face: Face::Back,
                 factor,
-                material
+                material,
             }
         }
     }
 }
 
+//TODO remplacer par Shape/Geometry
 pub trait Hittable {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<Hit>;
 }
 
+// TODO sortir le materiau, et les lier dans un Objet(Shape, Material)
 pub struct Sphere {
     pub centre: Point3,
     pub radius: f64,
-    pub(crate) material: Rc<Box<dyn Material>>
+    pub(crate) material: Rc<dyn Material>,
 }
 
-impl Hittable for &[Box<dyn Hittable>]{
+impl Sphere {
+    //une sphere est définit par son centre et son rayon
+    pub fn new<T: Material + 'static>(x: f64, y: f64, z: f64, r: f64, material: T) -> Sphere {
+        Sphere {
+            centre: Point3(x, y, z),
+            radius: r,
+            material: Rc::new(material),
+        }
+    }
+}
+
+// un slice d'objet qui peuvent intersecter est lui même intersectable.
+// l'objet le plus proche avec lequel le rayon intersecte est retenu
+impl Hittable for &[Rc<dyn Hittable>] {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<Hit> {
         let mut closest = t_max;
         let mut ret = None;
-        for obj in self.iter(){
-            if let Some(hit) = obj.hit(ray, t_min, closest){
+        for obj in self.iter() {
+            if let Some(hit) = obj.hit(ray, t_min, closest) {
                 closest = hit.factor;
                 ret = Some(hit);
             }
@@ -68,40 +90,23 @@ impl Hittable for &[Box<dyn Hittable>]{
     }
 }
 
+// Pour savoir si une sphere intersect avec le rayon, on recherche un point t sur le Rayon R = (A, B) qui touche la sphere en P(t)
+// avec A l'origine du rayon, B le vecteur directeur du rayon
+// le point t doit donc satisfaire l'equation de sphere (x2 + y2 + z2 = r2) (donc P(t) est sur la sphere et C le centre de la sphere)
+// r2 == vec(P(t)C).vec(P(t)C), et P(t) = A + B*t <==> vec(A+B*t, C).vec(A+B*t, C) == r2
+// vec(A+B*t, C) == vec(A,C) + B*t, soit X=vec(A,C) <==> (X + B*t).(X + B*t) == r2
+// X.X + 2*t*X.B + t2 * B.B == r2 => eq second degré ax2 +bx +c == 0 => x=t, a=B.B, b=2*x*B, c=X.X
+// discriminant delta=b2-4ac, root1=(-b-sqrt(delta))/2a, root2=(-b+sqrt(delta))/2a
+// simplication: si b=2h, delta=4h2-4ac, root1=(-2h-sqrt(4h2-4ac))/2a, root2=(-2h+sqrt(4h2-4ac))/2a
+//               root1=(-h-sqrt(h2-ac))/a, root2=(h+sqrt(h2-ac))/a
 impl Hittable for Sphere {
-    /*fn hit_sphere(sphere_center: Point3, sphere_radius: f64, ray: &Ray) -> Option<Point3> {
-        // P: point(x, y, z), C: origin; P(t) = A + tb => A: origine du rayon, b: direction du rayon, t: un facteur de distance (Ray::at)
-
-        // on recherche un point t sur le Rayon qui touche la sphere
-        // => qui satisfait l'equation de la sphere (x2 + y2 + z2 = r2)
-        // donc (P(t)-C).(P(t)-C) == r2 <==> (A + tb - C).(A + tb - C) == r2
-        // ( (A-C) +tb ).( (A-C) +tb ) == (A-C).(A-C) + tb.(A-C) + tb.(A-C) + tb.tb == r2
-        //X = A-C == sphere_center_to_origin
-        //
-        // X.X + 2*t*b.X + t2*b.b - r2 == 0 => eq du second degré ax2 + bx + c == 0 => a=b.b, b=2*b.X, c=X.X - r2
-        // discriminant : delta = b2-4ac.
-        // 1 solution si delta == 0, 2 si delta > 0 sinon 0 solution
-
-        let sphere_center_to_origin = Vec3::points(sphere_center, ray.origin);
-        let squared_radius = sphere_radius * sphere_radius;
-
-        let a = ray.direction.scalar_product(ray.direction);
-        let b = 2.0 * sphere_center_to_origin.scalar_product(ray.direction);
-        let c = sphere_center_to_origin.scalar_product(sphere_center_to_origin) - squared_radius;
-        let discriminant = b * b - 4f64 * a * c;
-        if discriminant < 0. {
-            None
-        } else {
-            Some(ray.at((-b - discriminant.sqrt()) / (2. * a)))
-        }
-        // discriminant == 0. && b < 0. || discriminant > 0. && b*b > discriminant
-    }*/
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<Hit> {
         let x = Vec3::points(self.centre, ray.origin);
         let a = ray.direction.sqr_len();
         let h = x.scalar_product(ray.direction);
+        let h2 = h*h;
         let c = x.sqr_len() - self.radius * self.radius;
-        let d = h * h - a * c;
+        let d = h2 - a * c;
         if d >= 0. {
             //2 racines possibles: (-h - d.sqrt()) / a ou (-h + d.sqrt()) / a
             //on ne veut garder que la plus proche, comprise dans l'interval
@@ -110,11 +115,25 @@ impl Hittable for Sphere {
             //normale: va du centre  de la sphere vers le hitpoint
             let root = (-h - d.sqrt()) / a;
             if root >= t_min && root <= t_max {
-                return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root))/ self.radius, self.material.clone()))
+                return Some(Hit::new(
+                    ray,
+                    root,
+                    ray.at(root),
+                    //division par radius plutot que .unit() -> utilisation d'un bug qui reverse la face du matériau en cas de radius negatif
+                    Vec3::points(self.centre, ray.at(root)) / self.radius,
+                    self.material.clone(),
+                ));
             }
             let root = (-h + d.sqrt()) / a;
             if root >= t_min && root <= t_max {
-                return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root))/ self.radius, self.material.clone()))
+                return Some(Hit::new(
+                    ray,
+                    root,
+                    ray.at(root),
+                    //division par radius plutot que .unit() -> utilisation d'un bug qui reverse la face du matériau en cas de radius negatif
+                    Vec3::points(self.centre, ray.at(root)) / self.radius,
+                    self.material.clone(),
+                ));
             }
         }
         None

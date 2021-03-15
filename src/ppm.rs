@@ -1,6 +1,7 @@
 use std::io::Write;
 use crate::Color;
 
+//fichier graphique de type bitmap textuel
 pub struct Ppm<T>{
     writer: T,
     width: u32,
@@ -20,10 +21,14 @@ impl<T: Write> Ppm<T>{
             current_c: 0,
             current_l: 0
         };
+        //entete
         ppm.writer.write_all(format!("P3\n{} {}\n{}\n", width, height, (colors-1)).as_bytes())?;
         Ok(ppm)
     }
 
+    //un pixel est composé dans l'ordre de R, G, B séparés par des espaces.
+    //Les pixels d'une même ligne sont séparés entre eux par des espaces.
+    //on passe à la ligne suivante avec un newline \n
     pub fn next_pixel(&mut self, color: Color) -> Result<(), std::io::Error>{
         if self.current_l >= self.height{
             return Ok(());

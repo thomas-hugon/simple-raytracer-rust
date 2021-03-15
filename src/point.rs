@@ -1,5 +1,4 @@
 use crate::vec::Vec3;
-use rand::Rng;
 use std::ops::{Add, Sub};
 
 #[derive(Copy, Clone)]

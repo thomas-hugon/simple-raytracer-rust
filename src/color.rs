@@ -19,15 +19,8 @@ impl Color {
         (c.red as u32, c.green as u32, c.blue as u32)
     }
 
-    pub fn map<F>(self, f: F) -> Self
-        where F: Fn(f64,f64,f64)->(f64,f64,f64)
-    {
-        let (red, green, blue) = f(self.red, self.green, self.blue);
-        Color::new(red, green, blue)
-    }
-
     pub fn map_each<F>(self, f: F) -> Self
-        where F: Fn(f64)->(f64)
+        where F: Fn(f64)-> f64
     {
         Color::new(f(self.red), f(self.green), f(self.blue))
     }

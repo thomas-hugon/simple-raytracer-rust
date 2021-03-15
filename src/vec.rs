@@ -2,6 +2,7 @@ use crate::point::Point3;
 use rand::Rng;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
+//TODO regarder les crates existantes pour le calcul vectoriel
 #[derive(Copy, Clone)]
 pub struct Vec3(pub f64, pub f64, pub f64);
 
@@ -62,6 +63,7 @@ impl Div<f64> for Vec3 {
 }
 
 impl Vec3 {
+    //on créé un vec entre deux points: origine vers destination
     pub fn points(from: Point3, to: Point3) -> Vec3 {
         Vec3(to.0 - from.0, to.1 - from.1, to.2 - from.2)
     }
