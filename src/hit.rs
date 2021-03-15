@@ -8,6 +8,7 @@ pub enum Face {
 }
 pub struct Hit {
     pub hit_point: Point3,
+    //la normale est toujours stocké de sens opposé par rapport au rayon lancé
     pub normale: Vec3,
     pub face: Face,
     pub factor: f64,
@@ -15,6 +16,11 @@ pub struct Hit {
 
 impl Hit {
     pub fn new(ray: &Ray, factor: f64, hit_point: Point3, outward_normale: Vec3) -> Hit {
+        // normale: centre -> hitpoint
+        // si rayon sens opposé par rapport à normale -> on voit en direction du centre, donc la face ext
+        // sinon rayon meme sens: la cam est entre le centre et le hitpoint donc face int
+        // meme sens si produit scalaire > 0
+        // si la normale.rayon
         if ray.direction.scalar_product(outward_normale) < 0. {
             Hit {
                 hit_point,
@@ -93,6 +99,9 @@ impl Hittable for Sphere {
         if d >= 0. {
             //2 racines possibles: (-h - d.sqrt()) / a ou (-h + d.sqrt()) / a
             //on ne veut garder que la plus proche, comprise dans l'interval
+            //le plus proche de la cam, c'est celui avec la racine la + petite
+            // d étant positif, -h - d.sqrt() < -h + d.sqrt(), donc on teste -h - d.sqrt() en premier
+            //normale: va du centre  de la sphere vers le hitpoint
             let root = (-h - d.sqrt()) / a;
             if root >= t_min && root <= t_max {
                 return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root)).unit()))

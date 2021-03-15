@@ -7,43 +7,29 @@ pub struct Color {
     blue: f64,
 }
 
-pub struct AvgColor(Color, f64);
-impl AvgColor {
-    pub fn new(color: Color) -> AvgColor {
-        AvgColor(color, 1.)
-    }
-
-    pub fn empty() -> AvgColor {
-        const BLACK: Color = Color {
-            red: 0.,
-            green: 0.,
-            blue: 0.,
-        };
-        AvgColor(BLACK, 0.)
-    }
-
-    pub fn avg(self) -> Color {
-        self.0 / self.1
-    }
-}
-impl Add<Color> for AvgColor {
-    type Output = Self;
-
-    fn add(mut self, rhs: Color) -> Self::Output {
-        self.0 = self.0 + rhs;
-        self.1 += 1.;
-
-        self
-    }
-}
-
 impl Color {
+    pub const EMPTY: Color = Color::new(0., 0., 0.);
+
     pub const fn new(red: f64, green: f64, blue: f64) -> Color {
         Color { red, green, blue }
     }
+
     pub fn scale(&self, range: f64) -> (u32, u32, u32) {
         let c = range * *self;
         (c.red as u32, c.green as u32, c.blue as u32)
+    }
+
+    pub fn map<F>(self, f: F) -> Self
+        where F: Fn(f64,f64,f64)->(f64,f64,f64)
+    {
+        let (red, green, blue) = f(self.red, self.green, self.blue);
+        Color::new(red, green, blue)
+    }
+
+    pub fn map_each<F>(self, f: F) -> Self
+        where F: Fn(f64)->(f64)
+    {
+        Color::new(f(self.red), f(self.green), f(self.blue))
     }
 }
 

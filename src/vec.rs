@@ -88,6 +88,9 @@ impl Vec3 {
 
     pub fn random_unit_sphere() -> Vec3 {
         loop {
+            //vec origin->point random
+            //pour qu'un vecteur soit dans la sphere il faut |vec| < r
+            // pour une sphere unitaire r = r2 = 1, donc |vec|^2 < 1
             let dir = Vec3(
                 rand::thread_rng().gen_range(-1.0..=1.),
                 rand::thread_rng().gen_range(-1.0..=1.),
