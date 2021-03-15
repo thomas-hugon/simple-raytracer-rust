@@ -1,6 +1,8 @@
 use crate::point::Point3;
 use crate::ray::Ray;
 use crate::vec::Vec3;
+use crate::material::Material;
+use std::rc::Rc;
 
 pub enum Face {
     Front,
@@ -12,10 +14,11 @@ pub struct Hit {
     pub normale: Vec3,
     pub face: Face,
     pub factor: f64,
+    pub material: Rc<Box<dyn Material>>
 }
 
 impl Hit {
-    pub fn new(ray: &Ray, factor: f64, hit_point: Point3, outward_normale: Vec3) -> Hit {
+    pub fn new(ray: &Ray, factor: f64, hit_point: Point3, outward_normale: Vec3, material: Rc<Box<dyn Material>>) -> Hit {
         // normale: centre -> hitpoint
         // si rayon sens opposé par rapport à normale -> on voit en direction du centre, donc la face ext
         // sinon rayon meme sens: la cam est entre le centre et le hitpoint donc face int
@@ -26,14 +29,16 @@ impl Hit {
                 hit_point,
                 normale: outward_normale,
                 face: Face::Front,
-                factor
+                factor,
+                material
             }
         } else {
             Hit {
                 hit_point,
                 normale: -outward_normale,
                 face: Face::Back,
-                factor
+                factor,
+                material
             }
         }
     }
@@ -46,6 +51,7 @@ pub trait Hittable {
 pub struct Sphere {
     pub centre: Point3,
     pub radius: f64,
+    pub(crate) material: Rc<Box<dyn Material>>
 }
 
 impl Hittable for &[Box<dyn Hittable>]{
@@ -104,11 +110,11 @@ impl Hittable for Sphere {
             //normale: va du centre  de la sphere vers le hitpoint
             let root = (-h - d.sqrt()) / a;
             if root >= t_min && root <= t_max {
-                return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root)).unit()))
+                return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root))/ self.radius, self.material.clone()))
             }
             let root = (-h + d.sqrt()) / a;
             if root >= t_min && root <= t_max {
-                return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root)).unit()))
+                return Some(Hit::new(ray, root, ray.at(root), Vec3::points(self.centre, ray.at(root))/ self.radius, self.material.clone()))
             }
         }
         None

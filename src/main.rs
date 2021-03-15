@@ -2,15 +2,16 @@ mod angle;
 mod cam;
 mod color;
 mod hit;
+mod material;
 mod point;
 mod ppm;
 mod ray;
 mod vec;
-mod material;
 
 use crate::cam::Camera;
 use crate::color::Color;
 use crate::hit::{Face, Hittable, Sphere};
+use crate::material::{Dielectric, Diffuse, Metal};
 use crate::point::Point3;
 use crate::ray::Ray;
 use crate::vec::Vec3;
@@ -19,6 +20,7 @@ use rand::Rng;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::Add;
+use std::rc::Rc;
 
 struct StdOutWriter;
 impl Write for StdOutWriter {
@@ -56,7 +58,8 @@ fn ray_color(ray: &Ray, objects: &[Box<dyn Hittable>], rec_depth: u16) -> Color 
         // else {
         //     println!("----------------------- FRONT")
         // }
-        let target = hit.hit_point + hit.normale + Vec3::random_unit_sphere();
+
+        /*let target = hit.hit_point + hit.normale + Vec3::random_unit_sphere();
         //rayon lancé de hitpoint en direction de target, en récupérant 50% de la luminosité
         0.5 * ray_color(
             &Ray {
@@ -65,7 +68,19 @@ fn ray_color(ray: &Ray, objects: &[Box<dyn Hittable>], rec_depth: u16) -> Color 
             },
             objects,
             rec_depth - 1,
-        )
+        )*/
+
+        if let Some(reflexion) = hit.material.scatter(&hit, ray) {
+            reflexion.attenuation * ray_color(&reflexion.reflected_ray, objects, rec_depth - 1)
+        } else {
+            BLACK
+        }
+
+        // ray scattered;
+        // color attenuation;
+        // if (rec.mat_ptr->scatter(r, rec, attenuation, scattered))
+        // return attenuation * ray_color(scattered, world, depth-1);
+        // return color(0,0,0);
     } else {
         //gradient de couleur (blanc..bleu) pour le fond sir pas de HIT
         let t = 0.5 * (ray.direction.unit().y() + 1.);
@@ -79,7 +94,7 @@ fn main() -> std::io::Result<()> {
     const IMAGE_WIDTH: u32 = 500;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
 
-    const SAMPLES_PER_PIXEL: u32 = 100;
+    const SAMPLES_PER_PIXEL: u32 = 50;
     let camera = Camera::new(2.0, ASPECT_RATIO, 1.0, Point3(0f64, 0f64, 0f64));
 
     //Render
@@ -92,30 +107,61 @@ fn main() -> std::io::Result<()> {
         255,
     )?;
 
+    // auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
+    // auto material_center = make_shared<lambertian>(color(0.7, 0.3, 0.3));
+    // auto material_left   = make_shared<metal>(color(0.8, 0.8, 0.8));
+    // auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2));
+    //
+    // world.add(make_shared<sphere>(point3( 0.0, -100.5, -1.0), 100.0, material_ground));
+    // world.add(make_shared<sphere>(point3( 0.0,    0.0, -1.0),   0.5, material_center));
+    // world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
+    // world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
+
     let mut objects: Vec<Box<dyn Hittable>> = Vec::new();
-    objects.push(Box::new(Sphere {
-        centre: Point3(0., 0., -1.),
-        radius: 0.5,
-    }));
-    objects.push(Box::new(Sphere {
+    let ground = Sphere {
         centre: Point3(0., -100.5, -1.),
         radius: 100.,
-    }));
+        material: Rc::new(Box::new(Diffuse(Color::new(0.8, 0.8, 0.0)))),
+    };
+    let center = Sphere {
+        centre: Point3(0., 0., -1.),
+        radius: 0.5,
+        material: Rc::new(Box::new(Diffuse(Color::new(0.1, 0.2, 0.5)))),
+    };
+    let left = Sphere {
+        centre: Point3(-1., 0., -1.),
+        radius: -0.4,
+        material: Rc::new(Box::new(Dielectric {
+            refraction_indice: 1.2,
+        })),
+    };
+    let right = Sphere {
+        centre: Point3(1., 0., -1.),
+        radius: 0.5,
+        material: Rc::new(Box::new(Metal {
+            color: Color::new(0.8, 0.6, 0.2),
+            fuzziness: 1.,
+        })),
+    };
+    objects.push(Box::new(ground));
+    objects.push(Box::new(center));
+    objects.push(Box::new(left));
+    objects.push(Box::new(right));
 
-    let scale = 1./ (SAMPLES_PER_PIXEL as f64);
+    let scale = 1. / (SAMPLES_PER_PIXEL as f64);
     for j in (0..IMAGE_HEIGHT).rev() {
         for i in 0..IMAGE_WIDTH {
             //on lance N samples par pixel dans l'interval (i..i+1, j..j+1) et on average la couleur
             let mut color = Color::EMPTY;
-            for sample in 0..SAMPLES_PER_PIXEL {
+            for _ in 0..SAMPLES_PER_PIXEL {
                 let u = (i as f64 + rand::random::<f64>()) / (IMAGE_WIDTH as f64 - 1.);
                 let v = (j as f64 + rand::random::<f64>()) / (IMAGE_HEIGHT as f64 - 1.);
                 let ray = camera.ray(u, v);
-                color = color + ray_color(&ray, &objects, 10);
+                color = color + ray_color(&ray, &objects, 30);
             }
             color = color / SAMPLES_PER_PIXEL as f64;
             //gamma correction color^(1/gamma), gamma=2
-            color = color.map_each(|v|v.sqrt());
+            color = color.map_each(|v| v.sqrt());
             ppm.next_pixel(color)?;
         }
     }
