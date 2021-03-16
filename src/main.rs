@@ -11,7 +11,7 @@ mod vec;
 use crate::cam::Camera;
 use crate::color::Color;
 use crate::hit::{Hittable, Sphere};
-use crate::material::{Dielectric, Diffuse, Metal};
+use crate::material::{Dielectric, Diffuse, Metal, GenericMaterial, metal, dielectric, diffuse};
 use crate::point::Point3;
 use crate::ray::Ray;
 use ppm::Ppm;
@@ -82,10 +82,44 @@ fn main() -> std::io::Result<()> {
     )?;
 
     let mut objects: Vec<Rc<dyn Hittable>> = Vec::new();
+    //Def1
     let ground_mat = Diffuse::new(0.8, 0.8, 0.0);
     let center_mat = Diffuse::new(0.1, 0.2, 0.5);
     let left_mat = Dielectric::new(1.3);
     let right_mat = Metal::new(0.8, 0.6, 0.2, 0.1);
+
+    //Def2
+    let ground_mat = GenericMaterial{
+        color: Color::new(0.8, 0.8, 0.0),
+        diffusion_factor: 1.,
+        reflection_factor: None,
+        refraction_indice: 1.
+    };
+    let center_mat = GenericMaterial{
+        color: Color::new(0.1, 0.2, 0.5),
+        diffusion_factor: 1.,
+        reflection_factor: None,
+        refraction_indice: 1.
+    };
+    let left_mat = GenericMaterial{
+        color: Color::new(1., 1., 1.),
+        diffusion_factor: 0.1,
+        reflection_factor: Some(0.),
+        refraction_indice: 1.3
+    };
+    let right_mat = GenericMaterial{
+        color: Color::new(0.8, 0.6, 0.2),
+        diffusion_factor: 0.1,
+        reflection_factor: Some(1.),
+        refraction_indice: 1.
+    };
+
+    //Def3
+    let ground_mat = diffuse(0.8, 0.8, 0.0);
+    let center_mat = diffuse(0.1, 0.2, 0.5);
+    let left_mat = dielectric(1.5);
+    let right_mat = metal(0.8, 0.6, 0.2, 0.1);
+
     let ground = Sphere::new(0., -100.5, -1., 100., ground_mat);
     let center = Sphere::new(0., 0., -1., 0.5, center_mat);
     let left = Sphere::new(-1., 0., -1., -0.4, left_mat);
