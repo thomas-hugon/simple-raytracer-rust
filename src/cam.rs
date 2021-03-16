@@ -1,6 +1,7 @@
 use crate::point::Point3;
 use crate::ray::Ray;
 use crate::vec::Vec3;
+use crate::angle::Angle;
 
 pub struct Camera {
     origin: Point3,
@@ -10,7 +11,9 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(viewport_height: f64, aspect_ratio: f64, focal_length: f64, origin: Point3) -> Camera {
+    pub fn new( vertical_field_of_view: Angle, aspect_ratio: f64, focal_length: f64, origin: Point3) -> Camera {
+        let h = (vertical_field_of_view.rad()/2.).tan()/focal_length;
+        let viewport_height = 2. * h;
         let viewport_width = aspect_ratio * viewport_height;
         let h_vect = Vec3(viewport_width, 0., 0.);
         let v_vect = Vec3(0., viewport_height, 0.);

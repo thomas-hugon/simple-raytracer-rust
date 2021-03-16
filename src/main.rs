@@ -11,7 +11,7 @@ mod vec;
 use crate::cam::Camera;
 use crate::color::Color;
 use crate::hit::{Hittable, Sphere};
-use crate::material::{Dielectric, Diffuse, Metal, GenericMaterial, metal, dielectric, diffuse};
+use crate::material::{dielectric, diffuse, metal, Dielectric, Diffuse, GenericMaterial, Metal};
 use crate::point::Point3;
 use crate::ray::Ray;
 use ppm::Ppm;
@@ -19,6 +19,8 @@ use ppm::Ppm;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::rc::Rc;
+use crate::angle::Angle;
+use crate::angle::Angle::Deg;
 
 struct StdOutWriter;
 impl Write for StdOutWriter {
@@ -69,7 +71,12 @@ fn main() -> std::io::Result<()> {
     const IMAGE_WIDTH: u32 = 1024;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
 
-    let camera = Camera::new(2.0, ASPECT_RATIO, 1.0, Point3(0f64, 0f64, 0f64));
+    let camera = Camera::new(
+        Angle::Deg(90.),
+        ASPECT_RATIO,
+        1.0,
+        Point3(0f64, 0f64, 0f64),
+    );
 
     //Render
     let file = File::create("back.ppm")?;
@@ -81,53 +88,7 @@ fn main() -> std::io::Result<()> {
         255,
     )?;
 
-    let mut objects: Vec<Rc<dyn Hittable>> = Vec::new();
-    //Def1
-    let ground_mat = Diffuse::new(0.8, 0.8, 0.0);
-    let center_mat = Diffuse::new(0.1, 0.2, 0.5);
-    let left_mat = Dielectric::new(1.3);
-    let right_mat = Metal::new(0.8, 0.6, 0.2, 0.1);
-
-    //Def2
-    let ground_mat = GenericMaterial{
-        color: Color::new(0.8, 0.8, 0.0),
-        diffusion_factor: 1.,
-        reflection_factor: None,
-        refraction_indice: 1.
-    };
-    let center_mat = GenericMaterial{
-        color: Color::new(0.1, 0.2, 0.5),
-        diffusion_factor: 1.,
-        reflection_factor: None,
-        refraction_indice: 1.
-    };
-    let left_mat = GenericMaterial{
-        color: Color::new(1., 1., 1.),
-        diffusion_factor: 0.1,
-        reflection_factor: Some(0.),
-        refraction_indice: 1.3
-    };
-    let right_mat = GenericMaterial{
-        color: Color::new(0.8, 0.6, 0.2),
-        diffusion_factor: 0.1,
-        reflection_factor: Some(1.),
-        refraction_indice: 1.
-    };
-
-    //Def3
-    let ground_mat = diffuse(0.8, 0.8, 0.0);
-    let center_mat = diffuse(0.1, 0.2, 0.5);
-    let left_mat = dielectric(1.5);
-    let right_mat = metal(0.8, 0.6, 0.2, 0.1);
-
-    let ground = Sphere::new(0., -100.5, -1., 100., ground_mat);
-    let center = Sphere::new(0., 0., -1., 0.5, center_mat);
-    let left = Sphere::new(-1., 0., -1., -0.4, left_mat);
-    let right = Sphere::new(1., 0., -1., 0.5, right_mat);
-    objects.push(Rc::new(ground));
-    objects.push(Rc::new(center));
-    objects.push(Rc::new(left));
-    objects.push(Rc::new(right));
+    let objects = world_v2();
 
     for j in (0..IMAGE_HEIGHT).rev() {
         for i in 0..IMAGE_WIDTH {
@@ -148,4 +109,68 @@ fn main() -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn world_v2() -> Vec<Rc<dyn Hittable>> {
+    let mut objects: Vec<Rc<dyn Hittable>> = Vec::new();
+
+    let rayon = Deg(45.).rad().cos();
+    let mat_left = diffuse(0., 0., 1.);
+    let mat_right = diffuse(1., 0., 0.);
+
+    objects.push(Rc::new(Sphere::new(-rayon, 0., -1., rayon, mat_left)));
+    objects.push(Rc::new(Sphere::new(rayon, 0., -1., rayon, mat_right)));
+
+    objects
+}
+
+fn world_v1() -> Vec<Rc<dyn Hittable>> {
+    let mut objects: Vec<Rc<dyn Hittable>> = Vec::new();
+    //Def1
+    let ground_mat = Diffuse::new(0.8, 0.8, 0.0);
+    let center_mat = Diffuse::new(0.1, 0.2, 0.5);
+    let left_mat = Dielectric::new(1.3);
+    let right_mat = Metal::new(0.8, 0.6, 0.2, 0.1);
+
+    //Def2
+    let ground_mat = GenericMaterial {
+        color: Color::new(0.8, 0.8, 0.0),
+        diffusion_factor: 1.,
+        reflection_factor: None,
+        refraction_indice: 1.,
+    };
+    let center_mat = GenericMaterial {
+        color: Color::new(0.1, 0.2, 0.5),
+        diffusion_factor: 1.,
+        reflection_factor: None,
+        refraction_indice: 1.,
+    };
+    let left_mat = GenericMaterial {
+        color: Color::new(1., 1., 1.),
+        diffusion_factor: 0.1,
+        reflection_factor: Some(0.),
+        refraction_indice: 1.3,
+    };
+    let right_mat = GenericMaterial {
+        color: Color::new(0.8, 0.6, 0.2),
+        diffusion_factor: 0.1,
+        reflection_factor: Some(1.),
+        refraction_indice: 1.,
+    };
+
+    //Def3
+    let ground_mat = diffuse(0.8, 0.8, 0.0);
+    let center_mat = diffuse(0.1, 0.2, 0.5);
+    let left_mat = dielectric(1.5);
+    let right_mat = metal(0.8, 0.6, 0.2, 0.1);
+
+    let ground = Sphere::new(0., -100.5, -1., 100., ground_mat);
+    let center = Sphere::new(0., 0., -1., 0.5, center_mat);
+    let left = Sphere::new(-1., 0., -1., -0.4, left_mat);
+    let right = Sphere::new(1., 0., -1., 0.5, right_mat);
+    objects.push(Rc::new(ground));
+    objects.push(Rc::new(center));
+    objects.push(Rc::new(left));
+    objects.push(Rc::new(right));
+    objects
 }
