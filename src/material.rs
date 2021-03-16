@@ -158,6 +158,7 @@ fn reflectance(cosinus: f64, ratio: f64) -> f64{
 *
 ********************************************************************/
 //FIXME en cours de dev
+#[derive(Clone)]
 pub struct GenericMaterial{
     pub color: Color,
     pub diffusion_factor: f64,

@@ -21,6 +21,7 @@ use std::io::{BufWriter, Write};
 use std::rc::Rc;
 use crate::angle::Angle;
 use crate::angle::Angle::Deg;
+use crate::vec::Vec3;
 
 struct StdOutWriter;
 impl Write for StdOutWriter {
@@ -72,10 +73,11 @@ fn main() -> std::io::Result<()> {
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
 
     let camera = Camera::new(
-        Angle::Deg(90.),
+        Angle::Deg(20.),
         ASPECT_RATIO,
-        1.0,
-        Point3(0f64, 0f64, 0f64),
+        Point3(-2.,2.,1.),
+        Point3(0.,0.,-1.),
+        Vec3(0.,1.,0.)
     );
 
     //Render
@@ -88,7 +90,7 @@ fn main() -> std::io::Result<()> {
         255,
     )?;
 
-    let objects = world_v2();
+    let objects = world_v3();
 
     for j in (0..IMAGE_HEIGHT).rev() {
         for i in 0..IMAGE_WIDTH {
@@ -109,6 +111,23 @@ fn main() -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn world_v3() -> Vec<Rc<dyn Hittable>> {
+    let mut objects: Vec<Rc<dyn Hittable>> = Vec::new();
+
+    let material_ground = diffuse(0.8, 0.8, 0.0);
+    let material_center = diffuse(0.1, 0.2, 0.5);
+    let material_left   = dielectric(1.5);
+    let material_right  = metal(0.8, 0.6, 0.2, 0.0);
+
+    objects.push(Rc::new(Sphere::new( 0.0, -100.5, -1.0, 100.0, material_ground)));
+    objects.push(Rc::new(Sphere::new( 0.0,    0.0, -1.0,   0.5, material_center)));
+    objects.push(Rc::new(Sphere::new(-1.0,    0.0, -1.0,   0.5, material_left.clone())));
+    objects.push(Rc::new(Sphere::new(-1.0,    0.0, -1.0, -0.45, material_left)));
+    objects.push(Rc::new(Sphere::new( 1.0,    0.0, -1.0,   0.5, material_right)));
+
+    objects
 }
 
 fn world_v2() -> Vec<Rc<dyn Hittable>> {
