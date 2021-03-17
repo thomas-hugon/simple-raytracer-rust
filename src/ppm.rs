@@ -29,7 +29,7 @@ impl<T: Write> Ppm<T>{
     //un pixel est composé dans l'ordre de R, G, B séparés par des espaces.
     //Les pixels d'une même ligne sont séparés entre eux par des espaces.
     //on passe à la ligne suivante avec un newline \n
-    pub fn next_pixel(&mut self, color: Color) -> Result<(), std::io::Error>{
+    pub fn next_pixel(&mut self, color: &Color) -> Result<(), std::io::Error>{
         if self.current_l >= self.height{
             return Ok(());
         }
@@ -41,7 +41,13 @@ impl<T: Write> Ppm<T>{
             self.writer.write_all(format!("{} {} {}\n", red, green, blue).as_bytes() )?;
             self.current_c = 0;
             self.current_l += 1;
-            println!("line {} printed", self.current_l);
+        }
+        Ok(())
+    }
+
+    pub fn next_pixels(&mut self, colors: &[Color]) -> Result<(), std::io::Error>{
+        for color in colors{
+            self.next_pixel(color)?;
         }
         Ok(())
     }

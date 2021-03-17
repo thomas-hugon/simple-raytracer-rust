@@ -1,10 +1,11 @@
-use std::ops::{Add, Div, Mul};
+use std::ops::{Add, Div, Mul, Range};
+use rand::{random, Rng};
 
 #[derive(Copy, Clone)]
 pub struct Color {
-    red: f64,
-    green: f64,
-    blue: f64,
+    pub red: f64,
+    pub green: f64,
+    pub blue: f64,
 }
 
 impl Color {
@@ -23,6 +24,21 @@ impl Color {
         where F: Fn(f64)-> f64
     {
         Color::new(f(self.red), f(self.green), f(self.blue))
+    }
+
+    pub fn random() -> Color{
+        Color{
+            red: random(),
+            green: random(),
+            blue: random()
+        }
+    }
+    pub fn random_range(range: Range<f64>) -> Color{
+        Color{
+            red: rand::thread_rng().gen_range(range.clone()),
+            green: rand::thread_rng().gen_range(range.clone()),
+            blue: rand::thread_rng().gen_range(range)
+        }
     }
 }
 

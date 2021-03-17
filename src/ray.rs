@@ -1,5 +1,5 @@
-use crate::vec::Vec3;
 use crate::point::Point3;
+use crate::vec::Vec3;
 
 //Un rayon lancé est caractérisé par son origine et un vecteur définissant sa direction
 pub struct Ray {

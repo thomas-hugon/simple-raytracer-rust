@@ -104,6 +104,19 @@ impl Vec3 {
         }
     }
 
+    pub fn random_unit_disk() -> Vec3 {
+        loop {
+            let dir = Vec3(
+                rand::thread_rng().gen_range(-1.0..=1.),
+                rand::thread_rng().gen_range(-1.0..=1.),
+                0.,
+            );
+            if dir.sqr_len() < 1. {
+                return dir;
+            }
+        }
+    }
+
     pub fn unit(&self) -> Vec3 {
         *self / self.len()
     }

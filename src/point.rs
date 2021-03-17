@@ -1,5 +1,6 @@
-use crate::vec::Vec3;
 use std::ops::{Add, Sub};
+
+use crate::vec::Vec3;
 
 #[derive(Copy, Clone)]
 pub struct Point3(pub f64, pub f64, pub f64);
