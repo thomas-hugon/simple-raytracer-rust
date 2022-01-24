@@ -2,29 +2,14 @@
 
 use std::ops::{Mul, Neg};
 
-use rand::random;
-
 use crate::color::Color;
 use crate::geometry::{Face, Intersection};
 use crate::ray::Ray;
 use crate::vec::Vec3;
 
-pub struct Reflexion {
-    pub reflected_ray: Ray,
-    pub attenuation: Color,
-}
-
 fn reflect(incident: Vec3, normale: Vec3) -> Vec3 {
     incident - 2. * incident.scalar_product(normale) * normale
 }
-
-// fn refract(incident: Vec3, normale: Vec3, density_ratio: f64) -> Vec3 {
-//     let uv = incident.unit();
-//     let cos_theta = (-uv).scalar_product(normale).min(1.);
-//     let r_perp = density_ratio * (uv + cos_theta * normale);
-//     let r_par = (1. - r_perp.sqr_len()).abs().sqrt().neg().mul(normale);
-//     r_perp + r_par
-// }
 
 fn reflectance(cosinus: f64, ratio: f64) -> f64 {
     //schlick approximation
@@ -77,7 +62,7 @@ pub fn colored_dielectric(r: f64, g: f64, b: f64, refraction_indice: f64) -> Gen
 }
 
 impl GenericMaterial {
-    pub(crate) fn scatter(&self, hit: &Intersection, incident_ray: &Ray) -> Option<Reflexion> {
+    pub(crate) fn scatter(&self, hit: &Intersection, incident_ray: &Ray) -> Option<Ray> {
         //on détermine si reflexion ou refraction
         let mut direction = None;
         //si pas de facteur de reflection, alors -> diffusion totale: reflexion totale dans un rayon diffus autour de la normale
@@ -87,11 +72,15 @@ impl GenericMaterial {
         let uv = incident_ray.direction.unit();
         //si pas diffusion totale, on détermine aléatoirement si le rayon peut être refracté par rapport au facteur de reflexion
         //donc avec un facteur de reflexion <0 on se retrouve avec une refraction totale (ou quasi selon d'autres facteurs physiques)
-        if direction.is_none()
-            && self.reflection_factor.map_or(false, |reflection_factor| {
+        let refraction = if direction.is_none() {
+            self.reflection_factor.map_or(false, |reflection_factor| {
                 reflection_factor < rand::random()
             })
-        {
+        } else {
+            false
+        };
+
+        if refraction {
             let cos_theta = (-uv).scalar_product(hit.normale).min(1.);
             let sin_theta = (1. - cos_theta * cos_theta).sqrt();
             let density_ratio = if let Face::Front = hit.face {
@@ -129,12 +118,11 @@ impl GenericMaterial {
                     // self.diffusion_factor * Vec3::random_unit_sphere() => vecteur dans une sphere de rayon self.diffusion_factor, qui part de son centre
                     direction + self.diffusion_factor * Vec3::random_unit_sphere()
                 };
-                Reflexion {
-                    attenuation: self.color,
-                    reflected_ray: Ray {
-                        origin: hit.hit_point,
-                        direction,
-                    },
+
+                Ray {
+                    color: self.color,
+                    origin: hit.hit_point,
+                    direction,
                 }
             })
     }

@@ -2,6 +2,7 @@ use crate::angle::Angle;
 use crate::point::Point3;
 use crate::ray::Ray;
 use crate::vec::Vec3;
+use crate::color::Color;
 
 #[derive(Clone)]
 pub struct Camera {
@@ -51,11 +52,13 @@ impl Camera {
     pub fn ray(&self, s: f64, t: f64) -> Ray {
         let rd = self.lens_radius * Vec3::random_unit_sphere();
         let offset = self.u * rd.x() + self.v * rd.y();
+        let direction = Vec3::points(self.origin, self.ll_corner) - offset
+            + s * self.h_vect
+            + t * self.v_vect;
         Ray {
             origin: self.origin + offset,
-            direction: Vec3::points(self.origin, self.ll_corner) - offset
-                + s * self.h_vect
-                + t * self.v_vect,
+            direction,
+            color: Color::new(0., 0., 0.)
         }
     }
 }
